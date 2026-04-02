@@ -1,64 +1,45 @@
-# Course Management
+# Security Report
 
-> **Внимание:** проект умышленно уязвим и предназначен **только для локальной учебной среды**.
+## Overview
+Security analysis of the Course Management application using SAST (Semgrep), SCA (OWASP Dependency-Check), and DAST (OWASP ZAP).
 
-## Инструкция по запуску
+## Findings
 
-Для запуска приложения локально убедитесь, что установлены Java 17+ и Maven 3+.   
-Далее выполните следующие шаги:
+### Critical
 
-1. **Клонирование репозитория**:
+| # | Vulnerability | Location | OWASP | Fix |
+|---|---|---|---|---|
+| 1 | Plain-text passwords | `AuthController.java`, `data.sql` | A02:2021 | BCrypt hashing via `BCryptPasswordEncoder` |
+| 2 | Remote code execution via `PluginLoader` | `PluginLoader.java` | A08:2021 | Disabled remote class loading |
 
-```bash
-  git clone https://github.com/MatorinFedor/course-management.git
-```
+### High
 
-2. **Перейдите** в директорию с проектом
-3. **Сборка и запуск:** Вы можете запустить напрямую из Maven командой:
+| # | Vulnerability | Location | OWASP | Fix |
+|---|---|---|---|---|
+| 3 | SQL Injection | `CourseService.java` | A03:2021 | Parameterized query (`?` placeholder) |
+| 4 | XXE Injection | `XmlController.java` | A05:2021 | Disabled DTD, external entities in SAXReader |
+| 5 | SSRF in ProxyController | `ProxyController.java` | A10:2021 | Validate host, block loopback/private IPs |
+| 6 | SSRF in CourseController | `CourseController.java` | A10:2021 | Same SSRF protection as above |
+| 7 | Broken access control (role assignment) | `AuthController.java` | A01:2021 | Hardcoded STUDENT role on registration |
 
-```bash
-  mvn spring-boot:run
-```
+### Medium
 
-Либо собрать jar и запустить:
+| # | Vulnerability | Location | OWASP | Fix |
+|---|---|---|---|---|
+| 8 | Permissive CORS (`*`) | `WebConfig.java`, Controllers | A05:2021 | Restricted to `/api/**`, specific methods |
+| 9 | Exposed H2 console | `application.yaml` | A05:2021 | `h2.console.enabled: false` |
+| 10 | Open actuator endpoints | `application.yaml` | A05:2021 | Limited to `health,info` |
+| 11 | Stacktrace exposure | `application.yaml` | A04:2021 | `include-stacktrace: NEVER` |
+| 12 | SQL logging enabled | `application.yaml` | A09:2021 | `show-sql: false` |
+| 13 | Vulnerable dom4j 1.6.1 | `pom.xml` | A06:2021 | Updated to `org.dom4j:dom4j:2.1.4` |
+| 14 | Password logged in plain text | `AuthController.java` | A09:2021 | Removed password from log message |
 
-```bash
-  mvn package
-  java -jar target/course-management-0.0.1-SNAPSHOT.jar
-```
+## Tools Used
 
-По умолчанию приложение стартует на порту 8080.   
-При успешном запуске в консоли появится баннер Spring Boot и сообщение о старте Tomcat.
+- **SAST**: Semgrep with `p/default` ruleset
+- **SCA**: OWASP Dependency-Check 12.1.0
+- **DAST**: OWASP ZAP (Baseline Scan + API Scan)
 
-4. **Доступ к приложению:**  
-Откройте браузер и перейдите на http://localhost:8080. Вы увидите простую главную страницу с
-   навигацией:
-* /login – страница входа.
-* /students – список студентов.
-* /courses – список курсов.
+## False Positives
 
-5. **Docker (опционально):**  
-Альтернативно, можно использовать Docker:  
-**Сборка образа:**
-```bash
-  docker build -t courseapp .
-```
-**Запуск контейнера:**
-```bash
-  docker run -p 8080:8080 courseapp
-```
-После этого приложение будет доступно на http://localhost:8080 аналогично.
-
->**Важно:**   
-Проект предназначен для локального запуска. Не размещайте его в общедоступных сетях без устранения уязвимостей!  
-Все демонстрационные эксплойты предполагают, что атакующий либо имеет доступ к вашему локальному хосту, либо вы сами
-проверяете уязвимость. Вреда реальным системам этот код не нанесёт, если использовать по назначению (в учебной
-изолированной среде).
-
-## Навигация
-
-UI: http://localhost:8080  
-H2 Console: http://localhost:8080/h2-console (JDBC URL: `jdbc:h2:mem:courseapp`)  
-Actuator: http://localhost:8080/actuator
-
-Демо-аккаунты: `teacher/password` (TEACHER), `student/password` (STUDENT)
+Suppressed via `.semgrepignore` (test files) and `dependency-check-suppression.xml` (Spring Boot managed dependencies).
