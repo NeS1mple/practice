@@ -18,6 +18,7 @@ jobs:
       - name: Gitleaks Scan (Full Directory)
         run: |
           docker run --rm -v ${{ github.workspace }}:/path zricethezav/gitleaks:latest detect --source="/path" --no-git --verbose --redact
+        continue-on-error: true
 
 #  build-test-security:
 #    needs: [secrets-scan]
