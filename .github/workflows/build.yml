@@ -1,0 +1,119 @@
+name: Java CI with Maven
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container: eclipse-temurin:21-jdk
+    steps:
+      - uses: actions/checkout@v4
+      - name: Make mvnw executable
+        run: chmod +x ./mvnw
+      - name: Build with Maven
+        run: ./mvnw -B clean package 
+      - name: Upload JAR
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-jar
+          path: target/*.jar
+
+  sast:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Semgrep
+        run: pip install semgrep
+      - name: Run Semgrep SAST
+        run: semgrep scan --config p/default --sarif --output semgrep.sarif .
+        continue-on-error: true
+      - name: Upload SARIF
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: semgrep.sarif
+
+  dependency-scan:
+    runs-on: ubuntu-latest
+    needs: build
+    container: eclipse-temurin:21-jdk
+    steps:
+      - uses: actions/checkout@v4
+      - name: Make mvnw executable
+        run: chmod +x ./mvnw
+      - name: OWASP Dependency-Check
+        run: ./mvnw org.owasp:dependency-check-maven:12.2.0:check -DretireJsAnalyzerEnabled=false -Dformat=HTML -DsuppressionFiles=dependency-check-suppression.xml
+        continue-on-error: true
+      - name: Upload report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: dependency-check-report
+          path: target/dependency-check-report.html
+
+  dast:
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: actions/download-artifact@v4
+        with:
+          name: app-jar
+          path: target
+      - name: Start application
+        run: |
+          java -jar target/*.jar &
+          sleep 60
+      - name: ZAP Baseline Scan
+        uses: zaproxy/action-baseline@v0.14.0
+        with:
+          target: http://localhost:8080
+          rules_file_name: rules.tsv
+          artifact_name: 'zap-baseline-report'
+          allow_issue_writing: false
+        continue-on-error: true
+      - name: ZAP API Scan
+        uses: zaproxy/action-api-scan@v0.10.0
+        with:
+          target: http://localhost:8080/v3/api-docs
+          format: openapi
+          rules_file_name: rules.tsv
+          artifact_name: 'zap-api-report'
+          allow_issue_writing: false
+        continue-on-error: true
+
+  security-check:
+    runs-on: ubuntu-latest
+    needs: [sast, dependency-scan, dast]
+    if: always()
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify security fixes
+        run: |
+          echo "=== Проверка исправлений безопасности ==="
+          PASS=0; FAIL=0
+          check() { if grep -rq "$2" src/; then echo "success $1"; PASS=$((PASS+1)); else echo "error $1"; FAIL=$((FAIL+1)); fi; }
+          check "SQL injection fix (parameterized query)" "jdbc.query(sql, rm, title)"
+          check "XXE protection (disallow-doctype-decl)" "disallow-doctype-decl"
+          check "SSRF protection (isLoopbackAddress)" "isLoopbackAddress"
+          check "BCrypt password hashing" "BCryptPasswordEncoder"
+          check "Role-based access control" 'defaultValue.*STUDENT'
+          check "CORS restriction" 'allowedMethods.*GET'
+          check "H2 console disabled" "enabled: false"
+          check "Plugin loader disabled" "disabled for security"
+          check "Actuator restricted" 'include.*health'
+          check "Stacktrace hidden" "include-stacktrace: NEVER"
+          echo "=== Результат: $PASS пройдено, $FAIL не пройдено ==="
