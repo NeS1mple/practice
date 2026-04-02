@@ -82,6 +82,7 @@ jobs:
         with:
           target: http://localhost:8080
           rules_file_name: rules.tsv
+          artifact_name: 'zap-baseline-report'
           allow_issue_writing: false
         continue-on-error: true
       - name: ZAP API Scan
@@ -90,6 +91,7 @@ jobs:
           target: http://localhost:8080/v3/api-docs
           format: openapi
           rules_file_name: rules.tsv
+          artifact_name: 'zap-api-report'
           allow_issue_writing: false
         continue-on-error: true
 
