@@ -16,6 +16,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
+          args: detect --verbose --redact --staged
           fail-on-vulnerabilities: true
 
   build-test-security:
