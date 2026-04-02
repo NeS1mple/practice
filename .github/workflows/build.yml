@@ -2,7 +2,7 @@ name: Secure Build Pipeline
 
 on:
   pull_request:
-    branches: [ "main" ]
+    branches: [ "main", "gitleaks"]
 
 jobs:
   secrets-scan:
