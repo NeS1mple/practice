@@ -51,7 +51,7 @@ jobs:
       - name: Make mvnw executable
         run: chmod +x ./mvnw
       - name: OWASP Dependency-Check
-        run: ./mvnw dependency-check:check -DretireJsAnalyzerEnabled=false -Dformat=HTML -DsuppressionFiles=dependency-check-suppression.xml
+        run: ./mvnw org.owasp:dependency-check-maven:12.2.0:check -DretireJsAnalyzerEnabled=false -Dformat=HTML -DsuppressionFiles=dependency-check-suppression.xml
         continue-on-error: true
       - name: Upload report
         uses: actions/upload-artifact@v4
@@ -82,6 +82,7 @@ jobs:
         with:
           target: http://localhost:8080
           rules_file_name: rules.tsv
+          artifact_name: 'zap-baseline-report'
           allow_issue_writing: false
         continue-on-error: true
       - name: ZAP API Scan
@@ -90,6 +91,7 @@ jobs:
           target: http://localhost:8080/v3/api-docs
           format: openapi
           rules_file_name: rules.tsv
+          artifact_name: 'zap-api-report'
           allow_issue_writing: false
         continue-on-error: true
 
