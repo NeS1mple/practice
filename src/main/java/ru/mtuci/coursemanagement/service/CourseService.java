@@ -32,7 +32,8 @@ public class CourseService {
     }
 
     public List<Course> searchByTitle(String title) {
-        String sql = "SELECT id, title, description, teacher_id FROM courses WHERE title = '" + title + "'";
+        String sql = "SELECT id, title, description, teacher_id FROM courses WHERE title = ?";
+        return jdbc.query(sql, rm, title);
         RowMapper<Course> rm = (rs, i) -> new Course(
                 rs.getLong("id"),
                 rs.getString("title"),
