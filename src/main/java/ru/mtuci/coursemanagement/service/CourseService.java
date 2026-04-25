@@ -1,6 +1,7 @@
 package ru.mtuci.coursemanagement.service;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import ru.mtuci.coursemanagement.model.Course;
 import ru.mtuci.coursemanagement.repository.CourseRepository;
