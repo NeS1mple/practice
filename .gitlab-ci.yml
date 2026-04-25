@@ -1,0 +1,72 @@
+workflow:
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+
+stages:
+  - build
+  - test
+
+maven-build:
+  stage: build
+  script:
+    - ./mvnw.cmd -B clean test package
+  artifacts:
+    paths:
+      - target/*.jar
+
+semgrep-sast:
+  stage: test
+  variables:
+    PYTHONUTF8: "1"
+    PYTHONIOENCODING: "utf-8"
+  script:
+    - $env:Path += ";$env:APPDATA\Python\Python314\Scripts"
+    - semgrep scan --config auto --gitlab-sast -o gl-sast-report.json .
+  allow_failure: true
+  artifacts:
+    when: always
+    reports:
+      sast: gl-sast-report.json
+
+dependency-check:
+  stage: test
+  timeout: 2h
+  script:
+    - ./mvnw.cmd dependency-check:check -DretireJsAnalyzerEnabled=false -Dformat=HTML "-DsuppressionFiles=dependency-check-suppression.xml"
+  allow_failure: true
+  artifacts:
+    when: always
+    paths:
+      - target/dependency-check-report.html
+
+dast-baseline:
+  stage: test
+  needs:
+    - job: maven-build
+      artifacts: true
+  script:
+    - $env:ZAP_PATH = "C:\ZAP\ZAP_D-2026-03-18"
+    - Start-Process -NoNewWindow -FilePath java -ArgumentList "-jar", (Get-Item target\*.jar).FullName
+    - Start-Sleep -Seconds 30
+    - python "$env:ZAP_PATH\zap-baseline.py" -t http://localhost:8080 -r zap-baseline-report.html -c rules.tsv; exit 0
+  allow_failure: true
+  artifacts:
+    when: always
+    paths:
+      - zap-baseline-report.html
+
+dast-api:
+  stage: test
+  needs:
+    - job: maven-build
+      artifacts: true
+  script:
+    - $env:ZAP_PATH = "C:\ZAP\ZAP_D-2026-03-18"
+    - Start-Process -NoNewWindow -FilePath java -ArgumentList "-jar", (Get-Item target\*.jar).FullName
+    - Start-Sleep -Seconds 30
+    - python "$env:ZAP_PATH\zap-api-scan.py" -t http://localhost:8080/v3/api-docs -f openapi -r zap-api-report.html -c rules.tsv; exit 0
+  allow_failure: true
+  artifacts:
+    when: always
+    paths:
+      - zap-api-report.html
