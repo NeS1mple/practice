@@ -18,7 +18,7 @@ import java.util.Optional;
 @Controller
 @RequiredArgsConstructor
 public class AuthController {
-    private final UserService users;
+    private final PasswordEncoder passwordEncoder;
 
     @GetMapping("/login")
     public String loginPage() {
