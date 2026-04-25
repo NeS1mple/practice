@@ -1,7 +1,7 @@
-package com.example.practice.controller;
+package ru.mtuci.coursemanagement.controller;
 
-import com.example.practice.model.User;
-import com.example.practice.repository.UserRepository;
+import ru.mtuci.coursemanagement.model.User;
+import ru.mtuci.coursemanagement.repository.UserRepository;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
